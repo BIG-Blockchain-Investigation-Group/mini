@@ -1,0 +1,566 @@
+{
+	"BCAssetId": "476c0270-5d2f-11ec-bf63-0242ac130002",
+	"BCAssetType": "BCAssetSchema",	
+	"ProjectBCAssetId": "64d3387a-daaa-4ade-ab0a-da99a9dfd5f0",	
+	"BCAssetName": "BCAsset: JSON schema",
+	"Version": {
+		"Version": "1.0",
+		"Subversion": null,
+		"StartTime": "2019-11-29T07:22:23+06:00"
+	},
+	"BCAssetJsonSchema" : {
+    "$id": "https://mbsebc.com/schemas/bcasset",
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"title": "BCAsset",
+	"type": "object",
+	"description": "Class, subclasses and embedment of assets stored in the MCBA: MBSE Blockchain Consortium Application",
+	"$comment": "Depending on the validator, may need to change to an earlier version.",
+
+    "$defs": {
+		"CId": {"$comment": "CId, the multihash address in IPFS.",
+				"type": "string", 
+				"pattern": "^Qm[1-9A-HJ-NP-Za-km-z]{44}$"				
+		},
+		"UUId": {
+			"$comment": "Version 4 UUId generated from a random number.",
+			"type": "string",
+			"pattern": "^[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}$",
+			"minLength": 32,
+			"maxLength": 36,
+			"$comment": "actual data type is UUID, which the pattern applies."
+		},
+		
+		"BCAssetType": {
+			"$comment": "current BCAsset types (subclasses of BCAsset) supported.",
+			"$comment": "Generic is the superclass. May remove null in the future.",
+            "enum": [
+                "Generic",
+				"MBSEBaseModelDesc",
+                "MBSEVariantModelDesc",
+				"MBSEModel",
+				"ChangeRequest",
+				"DocumentPackage",
+				"BCDocument",
+				"VCN",
+				"Project", 
+				"BCAssetStatuses",
+				"BCAssetSchema",
+				"BCAssetTypeMetadata", 
+				"ABAC",
+				null
+            ],
+			"$comment": "null may be removed."
+        },
+		
+        "payload": {
+			"$comment": "A BCAsset may have 0 or more payloads, encrypted or not, off-chain stored or not.",
+			"description": "class for external storage of payload and its encryption.",
+            "type": "object",
+            "required": ["IsEncrypted","UseIPFS"],
+            "properties": {
+				"PayloadName": {"type": [ "string", "null" ] },
+				"PayloadType": {"type": [ "string", "null" ] },
+				"PayloadDesc": {"type": [ "string", "null" ] },
+                "IsEncrypted": {"type": "boolean", "default": true},
+				"UseIPFS": {"type": "boolean"},
+				"EncrypMethod": {"type": "string"},
+				"EncrypKey": {"type": "string"},
+				"PayloadRaw": {"type": [ "string", "null" ] },
+				"IPFSCid": { "$ref": "#/$defs/CId" },
+				"IPFS_HashHead" : {"type": "string", "minLength": 8, "maxLength": 8 },
+				"IPFS_Name": {"type": [ "string", "null" ] }
+            },		
+			"allOf": [
+				{	"if": {
+						"properties": { "IsEncrypted": { "const": true } }
+					},
+					"then": {
+						"required": ["EncrypMethod", "EncrypKey"]
+					}
+				},
+				{ 	"if": {
+						"properties": { "UseIPFS": { "const": true } }
+					},
+					"then": {
+						"required": ["IPFSCid", "IPFS_HashHead"]
+					},
+					"else": {
+						"required": ["PayloadRaw"]	
+					}
+				} 
+			],
+			"additionalProperties": false
+		},
+		
+		"version": {
+			"$comment": "A BCAsset can have an optional version.",
+			"$comment": "A specific BCAsset subclass can require versioning by using a BCAssetTypeMetadata object for the subclass/yue.",
+
+			"description": "handling vertical versioning, but not horizontal versioning.",
+            "type": "object",
+            "properties": {
+                "Version": {"type": "string"},
+                "Subversion": {"type": [ "string", "null" ] },
+				"StartTime": {"type": "string", "format":"date-time" },
+				"EndTime": {"type": "string", "format":"date-time" },
+				"Description": {"type": [ "string", "null" ]},
+				"Status": {"type": [ "string", "null" ]}				
+            },
+            "required": ["Version", "Subversion", "StartTime"],
+			"additionalProperties": false
+		},
+		
+		"BCTransaction": {
+			"$comment": "Optional transaction information can be obtained through API but may optionally be explicitly stored for performance enhancement and other goals.",
+			"description": "The BC transaction that creates the copy of the BCAsset object.",
+            "type": "object",
+            "properties": {
+                "TransactionId": {
+					"type": "string",
+					"pattern": "^[0-9a-fA-F]{64}$"
+				},
+				"CreationTime": {"type": "string", "format":"date-time" },
+				"FabOrgMSPId": {"type": [ "string", "null" ]},
+				"FabUserId": {"type": [ "string", "null" ]}				
+            },
+            "required": ["FabOrgMSPId", "FabUserId"],
+			"additionalProperties": false
+		},		
+		
+		"externalInfo": {
+			"$comment": "External information of a BCAsset provides no guarrantee of the availability or correctness of the info.",
+			"description": "Optional external information of the System Engineeing Environment",
+            "type": "object",
+            "required": [],
+            "properties": {
+				"SEEId": {"type": [ "string", "null" ] },
+				"SEEFilename": {"type": [ "string", "null" ] },
+				"SEEVersion": {"type": [ "string", "null" ] },
+				"SEELink": {"type": [ "string", "null" ] }
+            },
+			"additionalProperties": false
+		},
+		
+			
+		"MBSEModelRelationship": { 
+			"$comment": "For BCAsset type MBSEModel:",	
+			"type": "object",
+			"required": ["RelatedMBSEModelId", "MBSEModelRelationshipType"],
+			"properties": {
+				"RelatedMBSEModelId": { "$ref": "#/$defs/UUId" },
+				"MBSEModelRelationshipType": {"type": [ "string", "null" ] }
+			}
+		},
+		
+		"project": {
+			"$comment": "For BCAsset type project:",
+			"type": "object",
+			"required": ["IsTopLevel"],
+			"properties": {
+				"IsTopLevel": { "type": "boolean" },
+				"OrgRoleTypes": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"required": ["PORTType"],
+						"properties": {
+							"PORTType": {"type": "string"},
+							"description": {"type": "string"}
+						}
+					}
+				},			
+				"OrgRoles": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"required": ["OrgId", "PORTType"],
+						"properties": {
+							"OrgId": {"type": "string"},
+							"PORTType": {"type": "string"}
+						}
+					}
+				},
+				"OrgUserRoleTypes": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"required": ["POURTType"],
+						"properties": {
+							"POURTTYpe": {"type": "string"},
+							"description": {"type": "string"}
+						}
+					}
+				},				
+				"BCAssetTypeRoleTypes": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"required": ["PBTRTType"],
+						"properties": {
+							"PBTRTType": {"type": "string"},
+							"description": {"type": "string"}
+						}
+					}
+				},				
+				"BCAssetTypeRoles": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"required": ["BCAssetType", "PBTRTType"],
+						"properties": {
+							"BCAssetType": {"type": "string"},
+							"PBTRTType": {"type": "string"}
+						}
+					}
+				},
+				"parentProjectId": { "$ref": "#/$defs/UUId" }
+			},			
+			"if": {
+					"properties": { "IsTopLevel": { "const": false } }
+			},
+			"then": {
+				"required": ["parentProjectId"]
+			},
+			"additionalProperties": false
+		},
+					
+		"BCAssetTypeConstraintType": {
+		   "$comment": "For BCAsset type BCAssetTypeMetadata:",
+           "enum": [
+                "AlternateKey",
+				"ForeignKey",
+				"Check",
+				"BCAssetTypeEnum",
+				null
+            ],
+			"$comment": "null may be removed."
+		},
+		"BCAssetTypeConstraint": {
+			"description": "constaints for BCAssetTypeMetadata",
+            "type": "object",
+            "required": ["BCAssetTypeConstraintType", "MustValidate"],
+            "properties": {
+				"BCAssetTypeConstraintType": { "$ref": "#/$defs/BCAssetTypeConstraintType" },
+				"MustValidate": {"type": "boolean" },				
+				"AlternateKey": {			
+					"description": "an alternate key of a BCAssetType",
+					"type": "array",
+					"items": { 
+						"type": "string", 
+						"minItems": 1,
+						"uniqueItems": true 
+					}
+				},
+				
+				"FK_FromAssetType": {"$ref": "#/$defs/BCAssetType"},
+				"FK_FromAssetTypeAttr": { "type": "string" },
+				"FK_IsFromAssetTypeAttrComposite": {"type": "boolean" },
+				"FK_ToAssetType": {"$ref": "#/$defs/BCAssetType"},
+				"FK_ToAssetTypeAttr": { "type": "string" },
+				
+				"CheckExpression": { "type": "string" },
+				
+				"BCAssetTypeEnum": { 
+					"type": "object",
+					"required": ["AttributeName","EnumValues"],
+					"properties": {
+						"AttributeName": {"type": "string" },
+						"EnumValues": { 
+							"type": "array" ,
+							"items" : { 
+								"type": "string",
+								"minItems": 1,
+								"uniqueItems": true 
+							}
+						}
+					}
+				}
+            },
+			"allOf": [
+				{	"if": {
+						"properties": { "BCAssetTypeConstraintType": { "const": "AlternateKey" } }
+					},
+					"then": {
+						"required": ["AlternateKey"]
+					}
+				},
+				{ 
+					"if": {
+						"properties": { "BCAssetTypeConstraintType": { "const": "ForeignKey" } }
+					},
+					"then": {
+						"required": ["FK_FromAssetTypeAttr", "FK_IsFromAssetTypeAttrComposite", "FK_ToAssetType"]				
+					}
+				},
+				{ 
+					"if": {
+						"properties": { "BCAssetTypeConstraintType": { "const": "Check" } }
+					},
+					"then": {
+						"required": [ "CheckExpression"]					
+					}
+				},
+				{	"if": {
+						"properties": { "BCAssetTypeConstraintType": { "const": "BCAssetTypeEnum" } }
+					},
+					"then": {
+						"required": ["BCAssetTypeEnum"]
+					}
+				}
+			],	
+			"additionalProperties": false			
+		},
+		
+		"InSituBCAssetStatus": {
+            "$comment": "For BCAsset type BCAssetStatus",	
+			"type": "object",
+            "required": [],
+			"properties": {						
+				"SinceTime": {"type": "string", "format":"date-time" }
+			},
+			"additionalProperties": true
+		},			
+		"BCAssetStatus": {
+            "type": "object",
+            "required": ["BCAssetStatusName", "BCAssetStatusValue", "SinceTime"],
+            "properties": {
+				"BCAssetStatusName": {"type": "string" },	
+				"BCAssetStatusValue": {"type": "string" },								
+				"SinceTime": {"type": "string", "format":"date-time" }
+			}
+		},
+		"BCAssetStatuses": {				
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/BCAssetStatus",
+				"minItems": 1,
+				"uniqueItems": true 
+			}
+		},	
+		"AttributeProperties": { 
+			"type": "object",
+			"required": [],
+			"properties": {
+				"Required": { 
+					"type": "array" ,
+					"items" : { 
+						"type": "string",
+						"minItems": 1,
+						"uniqueItems": true 
+					}
+				},	
+				"Optional": { 
+					"type": "array" ,
+					"items" : { 
+						"type": "string",
+						"minItems": 1,
+						"uniqueItems": true 
+					}
+				},
+				"Immutable": { 
+					"type": "array" ,
+					"items" : { 
+						"type": "string",
+						"minItems": 1,
+						"uniqueItems": true 
+					}
+				}	
+			},
+			"anyOf": [
+				{ "required": ["required"] },
+				{ "required": ["optional"] },
+				{ "required": ["immutable"] }
+			]
+		},
+	
+		"BCDocumentType": {
+            "enum": [
+                "ModelGenerated",
+				"Requirement",
+                "other",
+				null
+            ]
+        },
+		
+		"BCDocumentDataType": {
+			"description": "BCDocument metadata and subclass data",            
+			"type": "object",
+            "required": ["BCDocumentType"],
+            "properties": {
+				"BCDocumentType": { "$ref": "#/$defs/BCDocumentType" },			
+				"GenerationMethod": { "type": "string" },
+				"SourceMBSEModelId": { "$ref": "#/$defs/UUId" }
+			},
+			"allOf": [
+				{	"if": {
+						"properties": { "BCDocumentType": { "const": "ModelGenerated" } }
+					},
+					"then": {
+						"required": ["GenerationMethod", "SourceMBSEModelId"]
+					}
+				}
+			],	
+			"additionalProperties": false			
+		}
+
+
+	},		
+
+	"required": ["BCAssetId", "BCAssetType"],
+	"$comment": "In below, properties are grouped by BCAsset and then its subclasses, separated by an empty line.",
+
+    "properties": {
+		"BCAssetId": { "$ref": "#/$defs/UUId" },
+		"BCAssetName": { "type": "string" },	
+		"BCAssetType": { "$ref": "#/$defs/BCAssetType" },
+		"Description": { "type": [ "string", "null" ] },
+		"Version": { "$ref": "#/$defs/version" },
+		"BCTransaction": { "$ref": "#/$defs/BCTransaction" },
+		"Payloads": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/payload",
+				"minItems": 1,
+				"uniqueItems": true 
+			}
+		},
+		"InSituBCAssetStatuses": { 
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/InSituBCAssetStatus",
+				"minItems": 1,
+				"uniqueItems": true 
+			}
+		},	
+		"ExternalInfo": { "$ref": "#/$defs/externalInfo" },
+		
+		"MBSEBaseModelDesc": { "type": [ "string", "null" ] },
+		
+		"VariantType": { "enum": ["summary", "detailed", "cise", "common", null]},
+		"BaseModelDescId": { "$ref": "#/$defs/UUId" },
+		
+		"MBSEModelDesc": { "type": [ "string", "null" ] },
+		"VariantModelDescId": { "$ref": "#/$defs/UUId" },
+		"ParentMBSEModelId": { "$ref": "#/$defs/UUId" },
+		"ChildMBSEModelIds": { 
+			"type": "array",
+			"items" : { 
+				"$ref":"#/$defs/UUId",
+				"minItems": 1,
+				"uniqueItems": true 
+			}
+		},	
+		"MBSEModelToRelationships": { 
+			"type": "array",
+			"items" : { 
+				"$ref":"#/$defs/MBSEModelRelationship",
+				"minItems": 1,
+				"uniqueItems": true 
+			}
+		},	
+		"MBSEModelFromRelationships": { 
+			"type": "array",
+			"items" : { 
+				"$ref":"#/$defs/MBSEModelRelationship",
+				"minItems": 1,
+				"uniqueItems": true 
+			}
+		},	
+		
+		"Project": { "$ref": "#/$defs/project" },
+
+		"ForBCAssetId": { "$ref":"#/$defs/UUId" } ,
+		"BCAssetStatuses": { "$ref": "#/$defs/BCAssetStatuses" },
+
+		"BCAssetJsonSchema": { "type": [ "string", "null" ] },
+		
+		"ForBCAssetType": { "$ref": "#/$defs/BCAssetType" },
+		"BCAssetTypeConstraints": { 
+			"type": "array",
+			"items" : { 
+				"$ref": "#/$defs/BCAssetTypeConstraint",
+				"minItems": 1,
+				"uniqueItems": true 
+			}
+		},
+		"AttributeProperties": { "$ref": "#/$defs/AttributeProperties" },
+		
+		"BCDocumentData": { "$ref": "#/$defs/BCDocumentDataType" },
+		"Payload": { "$ref": "#/$defs/payload" }
+	},
+	
+	"$comment": "Requried properties of a BCAsset subclass. Optional properties not enforceable in current JSON schema draft",
+	"allOf": [
+		{ 	"if": {
+				"properties": { "BCAssetType": { "const": "MBSEBaseModelDesc" } }
+			},
+			"then": {
+				"required": ["MBSEBaseModelDesc"]
+			}
+        },	
+		
+		{ "if": {
+				"properties": { "BCAssetType": { "const": "MBSEVariantModelDesc" } }
+		  },
+          "then": {
+				"required": [ "VariantType", "BaseModelDescId"]
+		  },
+		  "$comment": "detailed: for developing org; summary: for approval; cise: cise internal; common: sharing."
+        },
+		
+		{ 	"if": {
+				"properties": { "BCAssetType": { "const": "MBSEModel" } }
+			},
+			"then": {
+				"required": ["MBSEModelDesc"]
+			},
+			"$comment": "Properties for MBSEModel."
+        },		
+	
+		{	"if": {
+				"properties": { "BCAssetType": { "const": "Project" } }
+			},
+			"then": {
+				"required": ["project"]
+			}
+		},		
+		{	"if": {
+				"properties": { "BCAssetType": { "const": "BCAssetStatuses"  } }
+			},
+			"then": {
+				"required": ["ForBCAssetId" ,"BCAssetStatuses"]
+			},
+			"$comment": "for BCAssetStatuses :"
+		},
+		{	"if": {
+				"properties": { "BCAssetType": { "const": "BCAssetSchema" } }
+			},
+			"then": {
+				"required": ["BCAssetJsonSchema"]
+			},
+			"$comment": "for BCAssetJsonSchema, a singleton class. Actual type should be JSON meta-schema."
+		},
+		{	"if": {
+				"properties": { "BCAssetType": { "const": "BCAssetTypeMetadata" } }
+			},
+			"then": {
+				"required": ["ForBCAssetType"],			
+				"anyOf": [
+					{ "required": ["BCAssetTypeConstraints"] },
+					{ "required": ["AttributeProperties"] }
+				]
+			}
+		},
+		{	"if": {
+				"properties": { "BCAssetType": { "const": "BCDocument" } }
+			},
+			"then": {
+				"required": ["BCDocumentData", "Payload"]	
+			}
+		}			
+	]	
+},	
+	"ExternalInfo": {
+		"SEEId": "9890d937092"
+	}
+}
